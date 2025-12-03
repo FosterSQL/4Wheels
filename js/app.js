@@ -1,5 +1,62 @@
-// API Configuration
-const API_BASE_URL = 'http://localhost:3000/api';
+// API Configuration - Use backend if available, otherwise use demo data
+// For GitHub Pages: use Railway backend, for local development: use localhost
+const API_BASE_URL = window.location.hostname === 'fostersql.github.io' 
+    ? 'https://4wheels-production.up.railway.app/api'
+    : 'http://localhost:3000/api';
+
+// Demo data for GitHub Pages (when backend is not available)
+const demoCarsData = [
+    {
+        car_id: 1, type_id: 1, type_name: "SUV", brand: "Toyota", model: "RAV4", year: 2023,
+        license_plate: "ABC-1234", daily_rate: 75.00, status: "available", mileage: 12000,
+        image_url: "https://www.buyatoyota.com/sharpr/bat/assets/img/vehicle-info/RAV4/2023/hero_image_rav4.png"
+    },
+    {
+        car_id: 2, type_id: 2, type_name: "Sedan", brand: "Honda", model: "Accord", year: 2022,
+        license_plate: "DEF-5678", daily_rate: 65.00, status: "available", mileage: 18000,
+        image_url: "https://di-uploads-pod21.dealerinspire.com/performancehondafairfield/uploads/2022/07/Honda-Accord-feature-overview-fairfield-oh-500x409.jpg"
+    },
+    {
+        car_id: 3, type_id: 3, type_name: "Truck", brand: "Ford", model: "F-150", year: 2021,
+        license_plate: "GHI-9012", daily_rate: 85.00, status: "maintenance", mileage: 25000,
+        image_url: "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/3116/"
+    },
+    {
+        car_id: 4, type_id: 4, type_name: "Convertible", brand: "BMW", model: "Z4", year: 2023,
+        license_plate: "JKL-3456", daily_rate: 120.00, status: "rented", mileage: 8000,
+        image_url: "https://file.kelleybluebookimages.com/kbb/base/evox/CP/13692/2023-BMW-Z4-front_13692_032_1864x724_C37_cropped.png?downsize=750:*"
+    },
+    {
+        car_id: 5, type_id: 5, type_name: "Van", brand: "Mercedes", model: "Sprinter", year: 2020,
+        license_plate: "MNO-7890", daily_rate: 95.00, status: "available", mileage: 40000,
+        image_url: "https://mkt-vehicleimages-prd.autotradercdn.ca/photos/chrome/Expanded/White/2020MBV040075/2020MBV04007501.jpg"
+    },
+    {
+        car_id: 6, type_id: 6, type_name: "Micro", brand: "Microlino", model: "MircolinoC1", year: 2022,
+        license_plate: "MIC-9090", daily_rate: 50.00, status: "available", mileage: 400,
+        image_url: "https://microlino-car.com/media/thumb/thumb_width1500_microlino-gotham-anthracite-performance.png"
+    },
+    {
+        car_id: 7, type_id: 7, type_name: "OFF-ROAD", brand: "Ford", model: "Bronco", year: 2025,
+        license_plate: "BRO-4958", daily_rate: 127.00, status: "available", mileage: 60000,
+        image_url: "https://www.ford.ca/cmslibs/content/dam/na/ford/en_ca/images/bronco-sport/2025/jellybeans/Ford_Bronco-Sport_2025_400A_PG1_888_89C_BY1AL_64V_T7T_99A_GTBAB_IGDAC_BLD_DEFAULT_EXT_4_010.png"
+    },
+    {
+        car_id: 8, type_id: 8, type_name: "Limousine", brand: "RollsRoyce", model: "Limo", year: 2023,
+        license_plate: "LIM-3330", daily_rate: 200.00, status: "available", mileage: 3000,
+        image_url: "https://limousinesworld.com/wp-content/uploads/2021/03/phantomlimo-scaled.jpg"
+    },
+    {
+        car_id: 9, type_id: 9, type_name: "Muscle", brand: "Chevrolet", model: "Camaro", year: 2024,
+        license_plate: "CAM-7709", daily_rate: 134.00, status: "available", mileage: 70000,
+        image_url: "https://cdn.motor1.com/images/mgl/xeOR6/s3/2018-chevrolet-camaro-1ss-1le.jpg"
+    },
+    {
+        car_id: 10, type_id: 10, type_name: "Hyper", brand: "Bugatti", model: "Bolide", year: 2025,
+        license_plate: "BOL-3340", daily_rate: 364.00, status: "rented", mileage: 68000,
+        image_url: "https://www.topgear.com/sites/default/files/2021/10/1%20Bugatti%20Bolide.jpg"
+    }
+];
 
 // State management
 let allCars = [];
@@ -20,7 +77,6 @@ async function fetchCarsFromDatabase() {
         
         if (data.success) {
             // Transform database column names to match frontend expectations
-            // Handle both uppercase (Oracle default) and lowercase column names
             allCars = data.data.map(car => ({
                 car_id: car.CAR_ID || car.car_id,
                 type_id: car.TYPE_ID || car.type_id,
@@ -39,12 +95,20 @@ async function fetchCarsFromDatabase() {
             loadCars();
         } else {
             console.error('Failed to fetch cars:', data.error);
-            showErrorMessage('Failed to load cars from database');
+            loadDemoData();
         }
     } catch (error) {
-        console.error('Error fetching cars:', error);
-        showErrorMessage('Unable to connect to the server. Please ensure the backend is running.');
+        console.error('API not available, using demo data:', error);
+        loadDemoData();
     }
+}
+
+// Load demo data for GitHub Pages
+function loadDemoData() {
+    allCars = [...demoCarsData];
+    filteredCars = [...demoCarsData];
+    loadCars();
+    console.log('Running in demo mode with sample data');
 }
 
 // Show error message to user
@@ -200,16 +264,17 @@ async function submitBooking(event) {
         const data = await response.json();
         
         if (data.success) {
-            alert(`Booking Confirmed!\n\nBooking ID: ${data.booking_id}\nCar: ${selectedCar.brand} ${selectedCar.model}\nTotal: ${document.getElementById('summary-total').textContent}`);
+            alert(`Booking Confirmed!\n\nBooking ID: ${data.rental_id}\nCar: ${selectedCar.brand} ${selectedCar.model}\nTotal: ${document.getElementById('summary-total').textContent}`);
             closeBookingModal();
-            // Refresh cars to update availability
             fetchCarsFromDatabase();
         } else {
             alert('Booking failed: ' + data.error);
         }
     } catch (error) {
-        console.error('Error submitting booking:', error);
-        alert('Failed to submit booking. Please ensure the server is running.');
+        console.error('API not available - Demo Mode:', error);
+        // Demo mode - show confirmation without saving to database
+        alert(`Booking Confirmed! (Demo Mode)\n\nCar: ${selectedCar.brand} ${selectedCar.model}\nTotal: ${document.getElementById('summary-total').textContent}\n\nNote: Running in demo mode. Connect to backend to save bookings.`);
+        closeBookingModal();
     }
 }
 
