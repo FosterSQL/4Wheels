@@ -164,18 +164,49 @@ app.get('/api/car-types', async (req, res) => {
 app.post('/api/bookings', async (req, res) => {
   let connection;
   try {
-    const { user_id, car_id, start_date, end_date, customer_name, customer_email, customer_phone } = req.body;
+    const { user_id, car_id, start_date, end_date, customer_name, customer_email, customer_phone, total_cost } = req.body;
+    
+    // Validate required fields
+    if (!car_id || !start_date || !end_date) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: car_id, start_date, end_date'
+      });
+    }
     
     connection = await database.getConnection();
     
-    // Calculate cost using database function
-    const costResult = await connection.execute(
-      `SELECT pkg_rental_utils.fn_calculate_rental_cost(:car_id, TO_DATE(:start_date, 'YYYY-MM-DD'), TO_DATE(:end_date, 'YYYY-MM-DD')) as TOTAL_COST
-       FROM DUAL`,
-      { car_id, start_date, end_date }
-    );
+    // Calculate cost using database function or use provided total_cost
+    let calculatedCost = total_cost;
     
-    const calculatedCost = costResult.rows[0].TOTAL_COST;
+    if (!calculatedCost) {
+      try {
+        const costResult = await connection.execute(
+          `SELECT pkg_rental_utils.fn_calculate_rental_cost(:car_id, TO_DATE(:start_date, 'YYYY-MM-DD'), TO_DATE(:end_date, 'YYYY-MM-DD')) as TOTAL_COST
+           FROM DUAL`,
+          { car_id, start_date, end_date }
+        );
+        calculatedCost = costResult.rows[0].TOTAL_COST;
+      } catch (funcError) {
+        console.log('Database function not available, using manual calculation:', funcError.message);
+        // Fallback: get car daily rate and calculate manually
+        const carResult = await connection.execute(
+          `SELECT DAILY_RATE FROM CARS WHERE CAR_ID = :car_id`,
+          { car_id }
+        );
+        
+        if (carResult.rows.length === 0) {
+          return res.status(404).json({
+            success: false,
+            error: 'Car not found'
+          });
+        }
+        
+        const dailyRate = carResult.rows[0].DAILY_RATE;
+        const days = Math.ceil((new Date(end_date) - new Date(start_date)) / (1000 * 60 * 60 * 24));
+        calculatedCost = days * dailyRate;
+      }
+    }
     
     // Insert rental with calculated cost
     const result = await connection.execute(
@@ -204,7 +235,8 @@ app.post('/api/bookings', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to create booking',
-      message: err.message
+      message: err.message,
+      details: err.toString()
     });
   } finally {
     if (connection) {
