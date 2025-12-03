@@ -1,0 +1,9 @@
+-- Drop old sequence to avoid conflicts
+DROP SEQUENCE seq_rental;
+
+-- Recreate sequence starting at 100
+CREATE SEQUENCE seq_rental
+START WITH 100
+INCREMENT BY 1
+NOCACHE
+NOCYCLE;

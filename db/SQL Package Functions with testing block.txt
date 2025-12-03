@@ -1,0 +1,114 @@
+--Functions Package Specification
+CREATE OR REPLACE PACKAGE pkg_rental_utils AS
+    -----------------------------------------------------------------
+    -- Global variables (accessible to callers)
+    -----------------------------------------------------------------
+    g_last_error_msg   VARCHAR2(4000);   -- Stores last error message
+    g_default_days     NUMBER := 1;      -- Default rental duration
+
+    -----------------------------------------------------------------
+    -- TYPE definitions
+    -----------------------------------------------------------------
+    TYPE car_rec_type IS RECORD (
+        car_id   Cars.car_id%TYPE,
+        status   Cars.status%TYPE,
+        daily_rate Cars.daily_rate%TYPE
+    );
+
+    -----------------------------------------------------------------
+    -- Public functions
+    -----------------------------------------------------------------
+    FUNCTION fn_calculate_rental_cost (
+        p_car_id     IN NUMBER,
+        p_start_date IN DATE,
+        p_end_date   IN DATE
+    ) RETURN NUMBER;
+
+    FUNCTION fn_get_car_status (
+        p_car_id IN NUMBER
+    ) RETURN VARCHAR2;
+END pkg_rental_utils;
+/
+
+--Package body
+CREATE OR REPLACE PACKAGE BODY pkg_rental_utils AS
+    -----------------------------------------------------------------
+    -- Private variables (only visible inside package body)
+    -----------------------------------------------------------------
+    v_last_car car_rec_type;   -- Holds last accessed car record
+    v_debug_mode BOOLEAN := FALSE;
+
+    -----------------------------------------------------------------
+    -- Function 1: Calculate Rental Cost
+    -----------------------------------------------------------------
+    FUNCTION fn_calculate_rental_cost (
+        p_car_id     IN NUMBER,
+        p_start_date IN DATE,
+        p_end_date   IN DATE
+    ) RETURN NUMBER
+    IS
+        v_days       NUMBER;
+        v_total_cost NUMBER;
+    BEGIN
+        -- Fetch car details into ROWTYPE record
+        SELECT car_id, status, daily_rate
+        INTO v_last_car
+        FROM Cars
+        WHERE car_id = p_car_id;
+
+        -- Calculate rental days
+        v_days := p_end_date - p_start_date;
+
+        -- Handle edge case: if dates invalid, use default
+        IF v_days <= 0 THEN
+            v_days := g_default_days;
+        END IF;
+
+        -- Compute total cost
+        v_total_cost := v_days * v_last_car.daily_rate;
+
+        RETURN v_total_cost;
+
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            g_last_error_msg := 'Car not found for ID ' || p_car_id;
+            RAISE_APPLICATION_ERROR(-20001, g_last_error_msg);
+        WHEN OTHERS THEN
+            g_last_error_msg := SQLERRM;
+            RAISE_APPLICATION_ERROR(-20002, 'Unexpected error: ' || g_last_error_msg);
+    END fn_calculate_rental_cost;
+
+    -----------------------------------------------------------------
+    -- Function 2: Get Car Status
+    -----------------------------------------------------------------
+    FUNCTION fn_get_car_status (
+        p_car_id IN NUMBER
+    ) RETURN VARCHAR2
+    IS
+    BEGIN
+        SELECT car_id, status, daily_rate
+        INTO v_last_car
+        FROM Cars
+        WHERE car_id = p_car_id;
+
+        RETURN v_last_car.status;
+
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            g_last_error_msg := 'Car not found for ID ' || p_car_id;
+            RETURN 'Car not found';
+        WHEN OTHERS THEN
+            g_last_error_msg := SQLERRM;
+            RETURN 'Error: ' || g_last_error_msg;
+    END fn_get_car_status;
+
+END pkg_rental_utils;
+/
+
+
+--Testing block
+SELECT pkg_rental_utils.fn_calculate_rental_cost(1, DATE '2025-12-01', DATE '2025-12-05') AS total_cost
+FROM dual;
+
+SELECT pkg_rental_utils.fn_get_car_status(1) AS car_status
+FROM dual;

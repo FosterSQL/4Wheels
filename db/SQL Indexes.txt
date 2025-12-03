@@ -1,0 +1,6 @@
+------------------------------------------------------------
+-- Indexes (Rentals is the most busy table)
+------------------------------------------------------------
+
+CREATE INDEX idx_rentals_user ON Rentals(user_id);
+CREATE INDEX idx_rentals_car ON Rentals(car_id);

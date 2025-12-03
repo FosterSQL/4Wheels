@@ -1,0 +1,75 @@
+------------------------------------------------------------
+-- TRIGGER 1: Set car status to 'rented' when rental is created
+------------------------------------------------------------
+CREATE OR REPLACE TRIGGER trg_car_status_rental
+AFTER INSERT ON Rentals
+FOR EACH ROW
+BEGIN
+    UPDATE Cars
+    SET status = 'rented'
+    WHERE car_id = :NEW.car_id;
+END;
+/
+
+-- TESTING TRIGGER 1
+INSERT INTO Rentals (rental_id, user_id, car_id, start_date, end_date, total_cost, status, created_at)
+VALUES (seq_rental.NEXTVAL, 1, 1, DATE '2025-12-01', DATE '2025-12-05', 250, 'booked', SYSDATE);
+
+-- Verify car status
+SELECT car_id, status FROM Cars WHERE car_id = 1;
+------------------------------------------------------------
+
+
+--- TRIGGER 2: Reset car status to 'available' when rental is completed or cancelled
+------------------------------------------------------------
+CREATE OR REPLACE TRIGGER trg_car_status_return
+AFTER UPDATE OF status ON Rentals
+FOR EACH ROW
+BEGIN
+    IF :NEW.status IN ('completed','cancelled') THEN
+        UPDATE Cars
+        SET status = 'available'
+        WHERE car_id = :NEW.car_id;
+    END IF;
+END;
+/
+
+-- TESTING TRIGGER 2
+UPDATE Rentals SET status = 'completed' WHERE rental_id = 100;
+
+-- Verify car status
+SELECT car_id, status FROM Cars WHERE car_id = 1;
+
+------------------------------------------------------------
+-- TRIGGER 3: Prevent overlapping rentals for the same car
+------------------------------------------------------------
+CREATE OR REPLACE TRIGGER trg_no_overlap_rental
+BEFORE INSERT ON Rentals
+FOR EACH ROW
+DECLARE
+    v_count NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO v_count
+    FROM Rentals
+    WHERE car_id = :NEW.car_id
+      AND status IN ('booked','ongoing')
+      AND (
+            (:NEW.start_date BETWEEN start_date AND end_date)
+         OR (:NEW.end_date BETWEEN start_date AND end_date)
+         OR (start_date BETWEEN :NEW.start_date AND :NEW.end_date)
+         OR (end_date BETWEEN :NEW.start_date AND :NEW.end_date)
+          );
+
+    IF v_count > 0 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Car is already booked for the selected dates.');
+    END IF;
+END;
+/
+
+-- TESTING TRIGGER 3
+-- Try overlapping rental → should raise ORA-20001 error
+INSERT INTO Rentals (rental_id, user_id, car_id, start_date, end_date, total_cost, status, created_at)
+VALUES (seq_rental.NEXTVAL, 1, 1, DATE '2025-12-03', DATE '2025-12-06', 300, 'booked', SYSDATE);
+
+//Disable trigger so it doesnt activate in the other testing code
+ALTER TRIGGER trg_no_overlap_rental DISABLE;

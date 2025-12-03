@@ -1,0 +1,122 @@
+--Package Procedures Specification
+
+CREATE OR REPLACE PACKAGE pkg_rental_ops AS
+    -----------------------------------------------------------------
+    -- Global variables (accessible outside the package)
+    -----------------------------------------------------------------
+    g_last_error_msg VARCHAR2(4000);   -- Stores last error message
+    g_default_cost   NUMBER := 0;      -- Default cost if calculation fails
+
+    -----------------------------------------------------------------
+    -- TYPE definitions
+    -----------------------------------------------------------------
+    TYPE rental_rec_type IS RECORD (
+        rental_id   Rentals.rental_id%TYPE,
+        user_id     Rentals.user_id%TYPE,
+        car_id      Rentals.car_id%TYPE,
+        start_date  Rentals.start_date%TYPE,
+        end_date    Rentals.end_date%TYPE,
+        total_cost  Rentals.total_cost%TYPE,
+        status      Rentals.status%TYPE
+    );
+
+    -----------------------------------------------------------------
+    -- Public procedures
+    -----------------------------------------------------------------
+    PROCEDURE proc_calculate_rental_cost (
+        p_rental_id IN NUMBER
+    );
+
+    PROCEDURE proc_cancel_rental (
+        p_rental_id IN NUMBER
+    );
+END pkg_rental_ops;
+/
+
+--Package Procedures body
+
+CREATE OR REPLACE PACKAGE BODY pkg_rental_ops AS
+    -----------------------------------------------------------------
+    -- Private variables (only visible inside package body)
+    -----------------------------------------------------------------
+    v_rental rental_rec_type;   -- Holds last accessed rental record
+    v_debug_mode BOOLEAN := FALSE;
+
+    -----------------------------------------------------------------
+    -- PROCEDURE 1: Calculate rental cost
+    -----------------------------------------------------------------
+    PROCEDURE proc_calculate_rental_cost (
+        p_rental_id IN NUMBER
+    ) AS
+        v_days NUMBER;
+        v_rate Cars.daily_rate%TYPE;
+    BEGIN
+        -- Fetch rental and car info
+        SELECT r.rental_id, r.user_id, r.car_id, r.start_date, r.end_date,
+               r.total_cost, r.status
+        INTO v_rental
+        FROM Rentals r
+        WHERE r.rental_id = p_rental_id;
+
+        SELECT TRUNC(v_rental.end_date - v_rental.start_date), c.daily_rate
+        INTO v_days, v_rate
+        FROM Cars c
+        WHERE c.car_id = v_rental.car_id;
+
+        -- Update rental cost
+        UPDATE Rentals
+        SET total_cost = v_days * v_rate
+        WHERE rental_id = p_rental_id;
+
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            g_last_error_msg := 'Rental not found for ID ' || p_rental_id;
+            DBMS_OUTPUT.PUT_LINE(g_last_error_msg);
+        WHEN OTHERS THEN
+            g_last_error_msg := SQLERRM;
+            DBMS_OUTPUT.PUT_LINE('Error calculating cost: ' || g_last_error_msg);
+    END proc_calculate_rental_cost;
+
+    -----------------------------------------------------------------
+    -- PROCEDURE 2: Cancel rental
+    -----------------------------------------------------------------
+    PROCEDURE proc_cancel_rental (
+        p_rental_id IN NUMBER
+    ) AS
+    BEGIN
+        UPDATE Rentals
+        SET status = 'cancelled',
+            total_cost = g_default_cost
+        WHERE rental_id = p_rental_id;
+
+    EXCEPTION
+        WHEN OTHERS THEN
+            g_last_error_msg := SQLERRM;
+            DBMS_OUTPUT.PUT_LINE('Error cancelling rental: ' || g_last_error_msg);
+    END proc_cancel_rental;
+
+END pkg_rental_ops;
+/
+
+--Testing block
+-- STEP 1: Insert a rental (USER_ID=1, CAR_ID=1, seq_rental starting at 100)
+INSERT INTO Rentals (rental_id, user_id, car_id, start_date, end_date, status, created_at)
+VALUES (seq_rental.NEXTVAL, 1, 1, DATE '2025-12-01', DATE '2025-12-05', 'booked', SYSDATE);
+
+-- STEP 2: Call procedure to calculate rental cost
+BEGIN
+    pkg_rental_ops.proc_calculate_rental_cost(100);
+END;
+/
+
+-- STEP 3: Verify cost updated
+SELECT rental_id, total_cost FROM Rentals WHERE rental_id = 100;
+
+-- STEP 4: Call procedure to cancel rental
+BEGIN
+    pkg_rental_ops.proc_cancel_rental(100);
+END;
+/
+
+-- STEP 5: Verify rental status and cost reset
+SELECT rental_id, status, total_cost FROM Rentals WHERE rental_id = 100;

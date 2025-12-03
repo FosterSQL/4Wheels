@@ -1,0 +1,64 @@
+--Function 1
+CREATE OR REPLACE FUNCTION fn_calculate_rental_cost (
+    p_car_id     IN NUMBER,
+    p_start_date IN DATE,
+    p_end_date   IN DATE
+) RETURN NUMBER
+IS
+    v_daily_rate Cars.daily_rate%TYPE;
+    v_days       NUMBER;
+    v_total_cost NUMBER;
+BEGIN
+    -- Get car's daily rate
+    SELECT daily_rate
+    INTO v_daily_rate
+    FROM Cars
+    WHERE car_id = p_car_id;
+
+    -- Calculate number of days
+    v_days := p_end_date - p_start_date;
+
+    -- Compute total cost
+    v_total_cost := v_days * v_daily_rate;
+
+    RETURN v_total_cost;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Car not found for ID ' || p_car_id);
+    WHEN OTHERS THEN
+        RAISE_APPLICATION_ERROR(-20002, 'Unexpected error: ' || SQLERRM);
+END;
+/
+
+--Testing block Function 1
+SELECT fn_calculate_rental_cost(1, DATE '2025-12-01', DATE '2025-12-05') AS total_cost
+FROM dual;
+
+
+--Function 2
+CREATE OR REPLACE FUNCTION fn_get_car_status (
+    p_car_id IN NUMBER
+) RETURN VARCHAR2
+IS
+    v_status Cars.status%TYPE;
+BEGIN
+    SELECT status
+    INTO v_status
+    FROM Cars
+    WHERE car_id = p_car_id;
+
+    RETURN v_status;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN 'Car not found';
+    WHEN OTHERS THEN
+        RETURN 'Error: ' || SQLERRM;
+END;
+/
+
+--Testing block Function 2
+SELECT fn_get_car_status(1) AS car_status
+FROM dual;
+

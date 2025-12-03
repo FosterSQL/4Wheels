@@ -190,11 +190,24 @@ function filterCars() {
 
 // Modal functions
 function openBookingModal(carId) {
+    // Check if user is logged in
+    const user = getCurrentUser();
+    if (!user) {
+        alert('Please login to book a car.');
+        openLoginModal();
+        return;
+    }
+    
     selectedCar = allCars.find(car => car.car_id === carId);
     if (!selectedCar) return;
     
     document.getElementById('summary-car').textContent = `${selectedCar.brand} ${selectedCar.model}`;
     document.getElementById('summary-rate').textContent = `$${selectedCar.daily_rate.toFixed(2)}`;
+    
+    // Pre-fill user information
+    document.getElementById('customer-name').value = `${user.first_name} ${user.last_name}`;
+    document.getElementById('customer-email').value = user.email;
+    document.getElementById('customer-phone').value = user.phone_number || '';
     
     const modal = document.getElementById('booking-modal');
     modal.style.display = 'block';
@@ -264,16 +277,24 @@ function setMinDate() {
 async function submitBooking(event) {
     event.preventDefault();
     
+    // Check if user is logged in
+    const user = getCurrentUser();
+    if (!user) {
+        alert('Please login to make a booking.');
+        openLoginModal();
+        return;
+    }
+    
     const bookingData = {
-        user_id: null, // Would come from logged-in user
+        user_id: user.user_id,
         car_id: selectedCar.car_id,
         start_date: document.getElementById('start-date').value,
         end_date: document.getElementById('end-date').value,
         total_cost: parseFloat(document.getElementById('summary-total').textContent.replace('$', '')),
         payment_method: document.getElementById('payment-method').value,
-        customer_name: document.getElementById('customer-name').value,
-        customer_email: document.getElementById('customer-email').value,
-        customer_phone: document.getElementById('customer-phone').value
+        customer_name: `${user.first_name} ${user.last_name}`,
+        customer_email: user.email,
+        customer_phone: user.phone_number || document.getElementById('customer-phone').value
     };
     
     try {
@@ -305,8 +326,187 @@ async function submitBooking(event) {
 // Close modal when clicking outside
 window.onclick = function(event) {
     const bookingModal = document.getElementById('booking-modal');
+    const loginModal = document.getElementById('login-modal');
+    const registerModal = document.getElementById('register-modal');
     
     if (event.target === bookingModal) {
         closeBookingModal();
+    } else if (event.target === loginModal) {
+        closeLoginModal();
+    } else if (event.target === registerModal) {
+        closeRegisterModal();
     }
 }
+
+// ============ AUTHENTICATION FUNCTIONS ============
+
+// Check if user is logged in
+function isLoggedIn() {
+    return localStorage.getItem('user') !== null;
+}
+
+// Get current user
+function getCurrentUser() {
+    const userStr = localStorage.getItem('user');
+    return userStr ? JSON.parse(userStr) : null;
+}
+
+// Update UI based on login state
+function updateAuthUI() {
+    const user = getCurrentUser();
+    const navAuth = document.querySelector('.nav-auth');
+    
+    if (user) {
+        // User is logged in
+        navAuth.innerHTML = `
+            <span style="color: var(--text-dark); margin-right: 1rem;">
+                <i class="fas fa-user-circle"></i> ${user.first_name} ${user.last_name}
+            </span>
+            <button class="btn-login" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        `;
+    } else {
+        // User is not logged in
+        navAuth.innerHTML = `
+            <button class="btn-login" onclick="openLoginModal()">
+                <i class="fas fa-user"></i> Login
+            </button>
+        `;
+    }
+}
+
+// Open login modal
+function openLoginModal() {
+    closeRegisterModal(); // Close register modal if open
+    document.getElementById('login-modal').style.display = 'block';
+    document.getElementById('login-form').reset();
+}
+
+// Close login modal
+function closeLoginModal() {
+    document.getElementById('login-modal').style.display = 'none';
+}
+
+// Open register modal
+function openRegisterModal() {
+    closeLoginModal(); // Close login modal if open
+    document.getElementById('register-modal').style.display = 'block';
+    document.getElementById('register-form').reset();
+}
+
+// Close register modal
+function closeRegisterModal() {
+    document.getElementById('register-modal').style.display = 'none';
+}
+
+// Submit login form
+async function submitLogin(event) {
+    event.preventDefault();
+    
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email, password })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Save user to localStorage
+            localStorage.setItem('user', JSON.stringify(data.user));
+            
+            // Update UI
+            updateAuthUI();
+            
+            // Close modal
+            closeLoginModal();
+            
+            // Show success message
+            alert(`Welcome back, ${data.user.first_name}!`);
+        } else {
+            alert('Login failed: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        alert('Login failed. Please check your connection and try again.');
+    }
+}
+
+// Submit registration form
+async function submitRegister(event) {
+    event.preventDefault();
+    
+    const firstName = document.getElementById('register-first-name').value;
+    const lastName = document.getElementById('register-last-name').value;
+    const email = document.getElementById('register-email').value;
+    const phone = document.getElementById('register-phone').value;
+    const password = document.getElementById('register-password').value;
+    const passwordConfirm = document.getElementById('register-password-confirm').value;
+    
+    // Validate passwords match
+    if (password !== passwordConfirm) {
+        alert('Passwords do not match!');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                first_name: firstName,
+                last_name: lastName,
+                email: email,
+                phone_number: phone || null,
+                password: password
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Save user to localStorage
+            localStorage.setItem('user', JSON.stringify(data.user));
+            
+            // Update UI
+            updateAuthUI();
+            
+            // Close modal
+            closeRegisterModal();
+            
+            // Show success message
+            alert(`Welcome, ${data.user.first_name}! Your account has been created successfully.`);
+        } else {
+            alert('Registration failed: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Registration error:', error);
+        alert('Registration failed. Please check your connection and try again.');
+    }
+}
+
+// Logout function
+function logout() {
+    // Remove user from localStorage
+    localStorage.removeItem('user');
+    
+    // Update UI
+    updateAuthUI();
+    
+    // Show message
+    alert('You have been logged out successfully.');
+}
+
+// Initialize auth UI on page load
+document.addEventListener('DOMContentLoaded', () => {
+    updateAuthUI();
+});

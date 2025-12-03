@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const oracledb = require('oracledb');
+const bcrypt = require('bcrypt');
 const database = require('./config/database');
 
 const app = express();
@@ -676,6 +677,189 @@ app.get('/api/health', (req, res) => {
     success: true,
     message: 'Server is running',
     timestamp: new Date().toISOString()
+  });
+});
+
+// ============ AUTHENTICATION ROUTES ============
+
+// POST - Register new user
+app.post('/api/register', async (req, res) => {
+  let connection;
+  try {
+    const { first_name, last_name, email, password, phone_number } = req.body;
+    
+    // Validate required fields
+    if (!first_name || !last_name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'All fields are required (first_name, last_name, email, password)'
+      });
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email format'
+      });
+    }
+    
+    // Validate password strength (min 6 characters)
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password must be at least 6 characters long'
+      });
+    }
+    
+    connection = await database.getConnection();
+    
+    // Check if email already exists
+    const checkEmail = await connection.execute(
+      `SELECT USER_ID FROM USERS WHERE UPPER(EMAIL) = UPPER(:email)`,
+      { email }
+    );
+    
+    if (checkEmail.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'Email already registered'
+      });
+    }
+    
+    // Hash password
+    const saltRounds = 10;
+    const password_hash = await bcrypt.hash(password, saltRounds);
+    
+    // Insert new user
+    const result = await connection.execute(
+      `INSERT INTO USERS (FIRST_NAME, LAST_NAME, EMAIL, PASSWORD_HASH, PHONE_NUMBER, ROLE)
+       VALUES (:first_name, :last_name, :email, :password_hash, :phone_number, 'customer')
+       RETURNING USER_ID INTO :user_id`,
+      {
+        first_name,
+        last_name,
+        email,
+        password_hash,
+        phone_number: phone_number || null,
+        user_id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT }
+      },
+      { autoCommit: true }
+    );
+    
+    const userId = result.outBinds.user_id[0];
+    
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      user: {
+        user_id: userId,
+        first_name,
+        last_name,
+        email,
+        role: 'customer'
+      }
+    });
+  } catch (err) {
+    console.error('Error registering user:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to register user',
+      message: err.message
+    });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error('Error closing connection:', err);
+      }
+    }
+  }
+});
+
+// POST - Login user
+app.post('/api/login', async (req, res) => {
+  let connection;
+  try {
+    const { email, password } = req.body;
+    
+    // Validate required fields
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and password are required'
+      });
+    }
+    
+    connection = await database.getConnection();
+    
+    // Find user by email
+    const result = await connection.execute(
+      `SELECT USER_ID, FIRST_NAME, LAST_NAME, EMAIL, PASSWORD_HASH, PHONE_NUMBER, ROLE
+       FROM USERS
+       WHERE UPPER(EMAIL) = UPPER(:email)`,
+      { email }
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid email or password'
+      });
+    }
+    
+    const user = result.rows[0];
+    
+    // Verify password
+    const passwordMatch = await bcrypt.compare(password, user.PASSWORD_HASH);
+    
+    if (!passwordMatch) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid email or password'
+      });
+    }
+    
+    // Return user info (excluding password hash)
+    res.json({
+      success: true,
+      message: 'Login successful',
+      user: {
+        user_id: user.USER_ID,
+        first_name: user.FIRST_NAME,
+        last_name: user.LAST_NAME,
+        email: user.EMAIL,
+        phone_number: user.PHONE_NUMBER,
+        role: user.ROLE
+      }
+    });
+  } catch (err) {
+    console.error('Error logging in:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to login',
+      message: err.message
+    });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error('Error closing connection:', err);
+      }
+    }
+  }
+});
+
+// GET - Check if user is logged in (validate session)
+app.get('/api/auth/check', async (req, res) => {
+  // For now, this is just a placeholder since we're using localStorage on frontend
+  // In a production app, you'd verify a JWT token or session here
+  res.json({
+    success: true,
+    message: 'Auth check endpoint'
   });
 });
 
