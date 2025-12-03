@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4Wheels - Car Rental Prototype</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <i class="fas fa-car"></i>
+                <span>4Wheels</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Car Rental Prototype</h1>
+            <p>Browse available vehicles based on Oracle database schema</p>
+        </div>
+    </section>
+
+    <!-- Search & Filter Section -->
+    <section class="search-section">
+        <div class="container">
+            <h2>Available Cars</h2>
+            <div class="search-filters">
+                <div class="filter-group">
+                    <label for="car-type">Type</label>
+                    <select id="car-type" onchange="filterCars()">
+                        <option value="">All Types</option>
+                        <option value="Sedan">Sedan</option>
+                        <option value="SUV">SUV</option>
+                        <option value="Luxury">Luxury</option>
+                        <option value="Sports">Sports</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="search">Search</label>
+                    <input type="text" id="search" placeholder="Search by model..." oninput="filterCars()">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Cars Grid Section -->
+    <section id="cars" class="cars-section">
+        <div class="container">
+            <div id="cars-grid" class="cars-grid">
+                <!-- Cars will be dynamically loaded here -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>4Wheels - Car Rental Prototype | Oracle Database Demo</p>
+        </div>
+    </footer>
+
+    <!-- Booking Modal -->
+    <div id="booking-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeBookingModal()">&times;</span>
+            <h2>Book This Car</h2>
+            <form id="booking-form" onsubmit="submitBooking(event)">
+                <div class="form-group">
+                    <label for="customer-name">Full Name</label>
+                    <input type="text" id="customer-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="customer-email">Email</label>
+                    <input type="email" id="customer-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="start-date">Pickup Date</label>
+                    <input type="date" id="start-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="end-date">Return Date</label>
+                    <input type="date" id="end-date" required>
+                </div>
+                <div class="booking-summary">
+                    <h3>Summary</h3>
+                    <div class="summary-item">
+                        <span>Car:</span>
+                        <span id="summary-car">-</span>
+                    </div>
+                    <div class="summary-item">
+                        <span>Rate:</span>
+                        <span id="summary-rate">$0/day</span>
+                    </div>
+                    <div class="summary-item">
+                        <span>Days:</span>
+                        <span id="summary-days">0</span>
+                    </div>
+                    <div class="summary-item total">
+                        <span>Total:</span>
+                        <span id="summary-total">$0</span>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary">Confirm Booking</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
