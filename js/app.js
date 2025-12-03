@@ -210,17 +210,41 @@ function closeBookingModal() {
     selectedCar = null;
 }
 
-// Calculate total cost
-function calculateTotal() {
+// Calculate total cost using database function
+async function calculateTotal() {
     if (!selectedCar) return;
     
-    const startDate = new Date(document.getElementById('start-date').value);
-    const endDate = new Date(document.getElementById('end-date').value);
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
     
-    if (startDate && endDate && endDate > startDate) {
-        const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-        const total = days * selectedCar.daily_rate;
+    if (startDate && endDate && new Date(endDate) > new Date(startDate)) {
+        try {
+            // Try to use database function for accurate cost calculation
+            const response = await fetch(`${API_BASE_URL}/calculate-cost`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    car_id: selectedCar.car_id,
+                    start_date: startDate,
+                    end_date: endDate
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                const days = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24));
+                document.getElementById('summary-days').textContent = `${days} day${days > 1 ? 's' : ''}`;
+                document.getElementById('summary-total').textContent = `$${data.total_cost.toFixed(2)}`;
+                return;
+            }
+        } catch (error) {
+            console.log('Using fallback calculation:', error);
+        }
         
+        // Fallback to client-side calculation
+        const days = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24));
+        const total = days * selectedCar.daily_rate;
         document.getElementById('summary-days').textContent = `${days} day${days > 1 ? 's' : ''}`;
         document.getElementById('summary-total').textContent = `$${total.toFixed(2)}`;
     }

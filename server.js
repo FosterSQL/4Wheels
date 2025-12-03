@@ -159,15 +159,24 @@ app.get('/api/car-types', async (req, res) => {
   }
 });
 
-// POST - Create a new booking
+// POST - Create a new booking (uses database function to calculate cost)
 app.post('/api/bookings', async (req, res) => {
   let connection;
   try {
-    const { user_id, car_id, start_date, end_date, total_cost, customer_name, customer_email, customer_phone } = req.body;
+    const { user_id, car_id, start_date, end_date, customer_name, customer_email, customer_phone } = req.body;
     
     connection = await database.getConnection();
     
-    // Insert rental
+    // Calculate cost using database function
+    const costResult = await connection.execute(
+      `SELECT pkg_rental_utils.fn_calculate_rental_cost(:car_id, TO_DATE(:start_date, 'YYYY-MM-DD'), TO_DATE(:end_date, 'YYYY-MM-DD')) as TOTAL_COST
+       FROM DUAL`,
+      { car_id, start_date, end_date }
+    );
+    
+    const calculatedCost = costResult.rows[0].TOTAL_COST;
+    
+    // Insert rental with calculated cost
     const result = await connection.execute(
       `INSERT INTO RENTALS (USER_ID, CAR_ID, START_DATE, END_DATE, TOTAL_COST, STATUS)
        VALUES (:user_id, :car_id, TO_DATE(:start_date, 'YYYY-MM-DD'), TO_DATE(:end_date, 'YYYY-MM-DD'), :total_cost, 'booked')
@@ -177,7 +186,7 @@ app.post('/api/bookings', async (req, res) => {
         car_id: car_id,
         start_date: start_date,
         end_date: end_date,
-        total_cost: total_cost,
+        total_cost: calculatedCost,
         rental_id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT }
       },
       { autoCommit: true }
@@ -186,7 +195,8 @@ app.post('/api/bookings', async (req, res) => {
     res.json({
       success: true,
       message: 'Booking created successfully',
-      rental_id: result.outBinds.rental_id[0]
+      rental_id: result.outBinds.rental_id[0],
+      total_cost: calculatedCost
     });
   } catch (err) {
     console.error('Error creating booking:', err);
@@ -490,6 +500,163 @@ app.get('/api/stats/rentals', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch rental statistics',
+      message: err.message
+    });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error('Error closing connection:', err);
+      }
+    }
+  }
+});
+
+// ============ DATABASE FUNCTIONS & PROCEDURES ============
+
+// Calculate rental cost using database function
+app.post('/api/calculate-cost', async (req, res) => {
+  let connection;
+  try {
+    const { car_id, start_date, end_date } = req.body;
+    connection = await database.getConnection();
+    
+    const result = await connection.execute(
+      `SELECT pkg_rental_utils.fn_calculate_rental_cost(:car_id, TO_DATE(:start_date, 'YYYY-MM-DD'), TO_DATE(:end_date, 'YYYY-MM-DD')) as TOTAL_COST
+       FROM DUAL`,
+      { car_id, start_date, end_date }
+    );
+    
+    res.json({
+      success: true,
+      total_cost: result.rows[0].TOTAL_COST,
+      car_id,
+      start_date,
+      end_date
+    });
+  } catch (err) {
+    console.error('Error calculating cost:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to calculate cost',
+      message: err.message
+    });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error('Error closing connection:', err);
+      }
+    }
+  }
+});
+
+// Get car status using database function
+app.get('/api/car-status/:carId', async (req, res) => {
+  let connection;
+  try {
+    connection = await database.getConnection();
+    
+    const result = await connection.execute(
+      `SELECT pkg_rental_utils.fn_get_car_status(:car_id) as CAR_STATUS
+       FROM DUAL`,
+      [req.params.carId]
+    );
+    
+    res.json({
+      success: true,
+      car_id: req.params.carId,
+      status: result.rows[0].CAR_STATUS
+    });
+  } catch (err) {
+    console.error('Error getting car status:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get car status',
+      message: err.message
+    });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error('Error closing connection:', err);
+      }
+    }
+  }
+});
+
+// Recalculate existing rental cost using procedure
+app.post('/api/rentals/:id/recalculate', async (req, res) => {
+  let connection;
+  try {
+    connection = await database.getConnection();
+    
+    await connection.execute(
+      `BEGIN pkg_rental_ops.proc_calculate_rental_cost(:rental_id); END;`,
+      [req.params.id],
+      { autoCommit: true }
+    );
+    
+    // Fetch updated rental
+    const result = await connection.execute(
+      `SELECT RENTAL_ID, TOTAL_COST, STATUS FROM RENTALS WHERE RENTAL_ID = :id`,
+      [req.params.id]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Rental cost recalculated',
+      data: result.rows[0]
+    });
+  } catch (err) {
+    console.error('Error recalculating rental:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to recalculate rental cost',
+      message: err.message
+    });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error('Error closing connection:', err);
+      }
+    }
+  }
+});
+
+// Cancel rental using procedure
+app.post('/api/rentals/:id/cancel', async (req, res) => {
+  let connection;
+  try {
+    connection = await database.getConnection();
+    
+    await connection.execute(
+      `BEGIN pkg_rental_ops.proc_cancel_rental(:rental_id); END;`,
+      [req.params.id],
+      { autoCommit: true }
+    );
+    
+    // Fetch updated rental
+    const result = await connection.execute(
+      `SELECT RENTAL_ID, STATUS, TOTAL_COST FROM RENTALS WHERE RENTAL_ID = :id`,
+      [req.params.id]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Rental cancelled successfully',
+      data: result.rows[0]
+    });
+  } catch (err) {
+    console.error('Error cancelling rental:', err);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to cancel rental',
       message: err.message
     });
   } finally {
