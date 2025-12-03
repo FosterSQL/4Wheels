@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>4Wheels - Car Rental Prototype</title>
+    <title>Premium Car Rental - Your Journey Starts Here</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -13,33 +13,63 @@
         <div class="container">
             <div class="nav-brand">
                 <i class="fas fa-car"></i>
-                <span>4Wheels</span>
+                <span>Premium Car Rental</span>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#home">Home</a></li>
+                <li><a href="#cars">Cars</a></li>
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="#reviews">Reviews</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+            <div class="nav-auth">
+                <button class="btn-login" onclick="openLoginModal()">
+                    <i class="fas fa-user"></i> Login
+                </button>
             </div>
         </div>
     </nav>
 
     <!-- Hero Section -->
-    <section class="hero">
+    <section id="home" class="hero">
         <div class="hero-content">
-            <h1>Car Rental Prototype</h1>
-            <p>Browse available vehicles based on Oracle database schema</p>
+            <h1>Find Your Perfect Ride</h1>
+            <p>Premium vehicles for every journey. Book now and drive your dream car today!</p>
+            <a href="#cars" class="btn-primary">Browse Cars</a>
         </div>
     </section>
 
     <!-- Search & Filter Section -->
     <section class="search-section">
         <div class="container">
-            <h2>Available Cars</h2>
+            <h2>Search Available Cars</h2>
             <div class="search-filters">
                 <div class="filter-group">
-                    <label for="car-type">Type</label>
+                    <label for="car-type">Car Type</label>
                     <select id="car-type" onchange="filterCars()">
                         <option value="">All Types</option>
                         <option value="Sedan">Sedan</option>
                         <option value="SUV">SUV</option>
                         <option value="Luxury">Luxury</option>
                         <option value="Sports">Sports</option>
+                        <option value="Electric">Electric</option>
                     </select>
+                </div>
+                <div class="filter-group">
+                    <label for="brand">Brand</label>
+                    <select id="brand" onchange="filterCars()">
+                        <option value="">All Brands</option>
+                        <option value="Toyota">Toyota</option>
+                        <option value="Honda">Honda</option>
+                        <option value="BMW">BMW</option>
+                        <option value="Mercedes">Mercedes</option>
+                        <option value="Tesla">Tesla</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="price-range">Max Price/Day</label>
+                    <input type="range" id="price-range" min="0" max="500" value="500" oninput="updatePriceLabel(); filterCars()">
+                    <span id="price-label">$500</span>
                 </div>
                 <div class="filter-group">
                     <label for="search">Search</label>
@@ -52,8 +82,86 @@
     <!-- Cars Grid Section -->
     <section id="cars" class="cars-section">
         <div class="container">
+            <h2>Available Vehicles</h2>
             <div id="cars-grid" class="cars-grid">
                 <!-- Cars will be dynamically loaded here -->
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="how-it-works">
+        <div class="container">
+            <h2>How It Works</h2>
+            <div class="steps-grid">
+                <div class="step">
+                    <div class="step-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h3>1. Browse & Select</h3>
+                    <p>Choose from our wide range of premium vehicles</p>
+                </div>
+                <div class="step">
+                    <div class="step-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <h3>2. Book Your Dates</h3>
+                    <p>Select your pickup and return dates</p>
+                </div>
+                <div class="step">
+                    <div class="step-icon">
+                        <i class="fas fa-credit-card"></i>
+                    </div>
+                    <h3>3. Complete Payment</h3>
+                    <p>Secure payment with multiple options</p>
+                </div>
+                <div class="step">
+                    <div class="step-icon">
+                        <i class="fas fa-key"></i>
+                    </div>
+                    <h3>4. Hit the Road</h3>
+                    <p>Pick up your car and enjoy your journey</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Reviews Section -->
+    <section id="reviews" class="reviews-section">
+        <div class="container">
+            <h2>What Our Customers Say</h2>
+            <div id="reviews-grid" class="reviews-grid">
+                <!-- Reviews will be dynamically loaded here -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact-section">
+        <div class="container">
+            <h2>Get In Touch</h2>
+            <div class="contact-info">
+                <div class="contact-item">
+                    <i class="fas fa-phone"></i>
+                    <div>
+                        <h3>Phone</h3>
+                        <p>+1 (555) 123-4567</p>
+                    </div>
+                </div>
+                <div class="contact-item">
+                    <i class="fas fa-envelope"></i>
+                    <div>
+                        <h3>Email</h3>
+                        <p>info@premiumcarrental.com</p>
+                    </div>
+                </div>
+                <div class="contact-item">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <div>
+                        <h3>Location</h3>
+                        <p>123 Main Street, City, State 12345</p>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -61,7 +169,32 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
-            <p>4Wheels - Car Rental Prototype | Oracle Database Demo</p>
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Premium Car Rental</h3>
+                    <p>Your trusted partner for premium vehicle rentals.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="#cars">Browse Cars</a></li>
+                        <li><a href="#how-it-works">How It Works</a></li>
+                        <li><a href="#reviews">Reviews</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Follow Us</h3>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-facebook"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 4 Wheels. All rights reserved.</p>
+            </div>
         </div>
     </footer>
 
@@ -69,7 +202,7 @@
     <div id="booking-modal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeBookingModal()">&times;</span>
-            <h2>Book This Car</h2>
+            <h2>Book Your Car</h2>
             <form id="booking-form" onsubmit="submitBooking(event)">
                 <div class="form-group">
                     <label for="customer-name">Full Name</label>
@@ -80,6 +213,10 @@
                     <input type="email" id="customer-email" required>
                 </div>
                 <div class="form-group">
+                    <label for="customer-phone">Phone Number</label>
+                    <input type="tel" id="customer-phone" required>
+                </div>
+                <div class="form-group">
                     <label for="start-date">Pickup Date</label>
                     <input type="date" id="start-date" required>
                 </div>
@@ -87,26 +224,56 @@
                     <label for="end-date">Return Date</label>
                     <input type="date" id="end-date" required>
                 </div>
+                <div class="form-group">
+                    <label for="payment-method">Payment Method</label>
+                    <select id="payment-method" required>
+                        <option value="">Select Payment Method</option>
+                        <option value="Credit Card">Credit Card</option>
+                        <option value="Debit Card">Debit Card</option>
+                        <option value="PayPal">PayPal</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                    </select>
+                </div>
                 <div class="booking-summary">
-                    <h3>Summary</h3>
+                    <h3>Booking Summary</h3>
                     <div class="summary-item">
                         <span>Car:</span>
                         <span id="summary-car">-</span>
                     </div>
                     <div class="summary-item">
-                        <span>Rate:</span>
-                        <span id="summary-rate">$0/day</span>
+                        <span>Daily Rate:</span>
+                        <span id="summary-rate">$0</span>
                     </div>
                     <div class="summary-item">
-                        <span>Days:</span>
-                        <span id="summary-days">0</span>
+                        <span>Duration:</span>
+                        <span id="summary-days">0 days</span>
                     </div>
                     <div class="summary-item total">
-                        <span>Total:</span>
+                        <span>Total Cost:</span>
                         <span id="summary-total">$0</span>
                     </div>
                 </div>
                 <button type="submit" class="btn-primary">Confirm Booking</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeLoginModal()">&times;</span>
+            <h2>Login</h2>
+            <form id="login-form" onsubmit="submitLogin(event)">
+                <div class="form-group">
+                    <label for="login-email">Email</label>
+                    <input type="email" id="login-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" required>
+                </div>
+                <button type="submit" class="btn-primary">Login</button>
+                <p class="modal-footer-text">Don't have an account? <a href="#" onclick="openRegisterModal()">Register</a></p>
             </form>
         </div>
     </div>

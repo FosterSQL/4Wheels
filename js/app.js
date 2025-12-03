@@ -1,71 +1,65 @@
-// Sample data representing the Oracle database schema
-// In production, this would come from API calls to your Oracle Express backend
-
-const carsData = [
-    {
-        car_id: 1,
-        type_id: 1,
-        type_name: "Sedan",
-        brand: "Toyota",
-        model: "Camry",
-        year: 2023,
-        license_plate: "ABC-1234",
-        daily_rate: 49.99,
-        status: "available",
-        mileage: 15000,
-        image_url: "https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=800&h=500&fit=crop"
-    },
-    {
-        car_id: 2,
-        type_id: 2,
-        type_name: "SUV",
-        brand: "Honda",
-        model: "CR-V",
-        year: 2024,
-        license_plate: "XYZ-5678",
-        daily_rate: 69.99,
-        status: "available",
-        mileage: 8000,
-        image_url: "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?w=800&h=500&fit=crop"
-    },
-    {
-        car_id: 3,
-        type_id: 3,
-        type_name: "Luxury",
-        brand: "BMW",
-        model: "5 Series",
-        year: 2024,
-        license_plate: "LUX-9012",
-        daily_rate: 129.99,
-        status: "available",
-        mileage: 5000,
-        image_url: "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=500&fit=crop"
-    },
-    {
-        car_id: 4,
-        type_id: 4,
-        type_name: "Sports",
-        brand: "Mercedes",
-        model: "AMG GT",
-        year: 2024,
-        license_plate: "SPT-3456",
-        daily_rate: 199.99,
-        status: "available",
-        mileage: 3000,
-        image_url: "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=800&h=500&fit=crop"
-    }
-];
+// API Configuration
+const API_BASE_URL = 'http://localhost:3000/api';
 
 // State management
-let allCars = [...carsData];
-let filteredCars = [...carsData];
+let allCars = [];
+let filteredCars = [];
 let selectedCar = null;
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', function() {
-    loadCars();
+    fetchCarsFromDatabase();
     setMinDate();
 });
+
+// Fetch cars from the database via API
+async function fetchCarsFromDatabase() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/cars`);
+        const data = await response.json();
+        
+        if (data.success) {
+            // Transform database column names to match frontend expectations
+            // Handle both uppercase (Oracle default) and lowercase column names
+            allCars = data.data.map(car => ({
+                car_id: car.CAR_ID || car.car_id,
+                type_id: car.TYPE_ID || car.type_id,
+                type_name: car.TYPE_NAME || car.type_name,
+                brand: car.BRAND || car.brand,
+                model: car.MODEL || car.model,
+                year: car.YEAR || car.year,
+                license_plate: car.LICENSE_PLATE || car.license_plate,
+                daily_rate: car.DAILY_RATE || car.daily_rate,
+                status: car.STATUS || car.status,
+                mileage: car.MILEAGE || car.mileage,
+                image_url: car.IMAGE_URL || car.image_url || `https://via.placeholder.com/400x250?text=${car.BRAND || car.brand}+${car.MODEL || car.model}`
+            }));
+            
+            filteredCars = [...allCars];
+            loadCars();
+        } else {
+            console.error('Failed to fetch cars:', data.error);
+            showErrorMessage('Failed to load cars from database');
+        }
+    } catch (error) {
+        console.error('Error fetching cars:', error);
+        showErrorMessage('Unable to connect to the server. Please ensure the backend is running.');
+    }
+}
+
+// Show error message to user
+function showErrorMessage(message) {
+    const carsGrid = document.getElementById('cars-grid');
+    if (carsGrid) {
+        carsGrid.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #e74c3c;">
+                <i class="fas fa-exclamation-circle" style="font-size: 48px; margin-bottom: 16px;"></i>
+                <h3>${message}</h3>
+                <p style="margin-top: 12px;">Make sure the server is running with: <code>npm start</code></p>
+            </div>
+        `;
+    }
+}
 
 // Load and display cars
 function loadCars() {
@@ -179,10 +173,9 @@ function setMinDate() {
 }
 
 // Form submissions
-function submitBooking(event) {
+async function submitBooking(event) {
     event.preventDefault();
     
-    // In production, this would send data to your Oracle backend
     const bookingData = {
         user_id: null, // Would come from logged-in user
         car_id: selectedCar.car_id,
@@ -195,12 +188,29 @@ function submitBooking(event) {
         customer_phone: document.getElementById('customer-phone').value
     };
     
-    console.log('Booking submitted:', bookingData);
-    
-    // Show success message
-    alert(`Booking Confirmed!\n\nCar: ${selectedCar.brand} ${selectedCar.model}\nTotal: ${document.getElementById('summary-total').textContent}`);
-    
-    closeBookingModal();
+    try {
+        const response = await fetch(`${API_BASE_URL}/bookings`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(bookingData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`Booking Confirmed!\n\nBooking ID: ${data.booking_id}\nCar: ${selectedCar.brand} ${selectedCar.model}\nTotal: ${document.getElementById('summary-total').textContent}`);
+            closeBookingModal();
+            // Refresh cars to update availability
+            fetchCarsFromDatabase();
+        } else {
+            alert('Booking failed: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error submitting booking:', error);
+        alert('Failed to submit booking. Please ensure the server is running.');
+    }
 }
 
 // Close modal when clicking outside
